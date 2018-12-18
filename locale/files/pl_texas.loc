@@ -1,0 +1,21 @@
+# LOCALE_KEYWORD = "Text"
+
+# Game flow
+NEW_GAME_START      = "Gra rozpoczeła się. (ID: {ID})
+PLAYER_CHECKED      = "{PLAYER_NAME} sprawdził."
+PLAYER_RAISED       = "{PLAYER_NAME} podbił do {}$."
+PLAYER_FOLD         = "{PLAYER_NAME} spasował."
+PLAYER_FOLD_STOP    = "{PLAYER_NAME} spasował i wycofał się z gry."
+PLAYER_ALL_IN       = "{PLAYER_NAME} wszedł all in."
+PLAYER_WON          = "{PLAYER_NAME} wygrał pulę Nr.{NUMBER_OF_POT} o wartości {MONEY} z {HAND_VALUE}"
+
+PLAYER_PROMPT       = "Oczekiwanie na {PLAYER_NAME}. Zostało {TIME} sek."
+PLAYER_KICKED       = "{PLAYER_NAME} jest AFK. Automatyczne {DECISION}"
+
+# Table info
+PLAYER_SIT          = "{PLAYER_NAME} usiadł przy stole."
+PLAYER_STAND        = "{PLAYER_NAME} wstał od stoły."
+PLAYER_READY        = "{PLAYER_NAME} jest gotowy do gry."
+PLAYER_NOT_READY    = "{PLAYER_NAME} nie jest gotowy do gry."
+NOT_ENOUGH          = "Niewystarczająca liczba graczy by rozpocząć grę."
+NEW_GAME_PROMPT     = "Nowa gra wystartuje za {TIME} sek."

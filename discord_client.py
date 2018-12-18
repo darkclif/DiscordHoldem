@@ -4,8 +4,9 @@ import asyncio
 
 instance = discord.Client()
 
-from event_dispatcher import dispatcher
+from event_dispatcher import *
 from logger import global_log
+
 
 @instance.event
 async def on_ready():
@@ -15,11 +16,16 @@ async def on_ready():
 @instance.event
 async def on_message(msg):
     if msg.content.startswith('!a'):
-        await dispatcher.on_message(msg)
+        await Dispatcher.on_message(msg)
 
 
 @instance.event
 async def on_reaction_add(reaction, user):
-    await dispatcher.on_reaction(reaction, user)
+    await Dispatcher.on_reaction_add(reaction, user)
+
+
+@instance.event
+async def on_reaction_remove(reaction, user):
+    await Dispatcher.on_reaction_remove(reaction, user)
 
 instance.run(_token.token)

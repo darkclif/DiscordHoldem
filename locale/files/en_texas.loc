@@ -1,0 +1,21 @@
+# LOCALE_KEYWORD = "Text"
+
+# Game flow
+NEW_GAME_START      = "New game started. ({ID})"
+PLAYER_CHECKED      = "{PLAYER_NAME} checked."
+PLAYER_RAISED       = "{PLAYER_NAME} raised to {}$."
+PLAYER_FOLD         = "{PLAYER_NAME} fold."
+PLAYER_FOLD_STOP    = "{PLAYER_NAME} fold and given up."
+PLAYER_ALL_IN       = "{PLAYER_NAME} is all in."
+PLAYER_WON          = "{PLAYER_NAME} won pot No.{NUMBER_OF_POT} of {MONEY} with {HAND_VALUE}"
+
+PLAYER_PROMPT       = "Waiting for {PLAYER_NAME}. {TIME} sec. left."
+PLAYER_KICKED       = "{PLAYER_NAME} is AFK. Auto {DECISION}"
+
+# Table info
+PLAYER_SIT          = "{PLAYER_NAME} sit down at the table."
+PLAYER_STAND        = "{PLAYER_NAME} stand up from the table."
+PLAYER_READY        = "{PLAYER_NAME} is ready to play."
+PLAYER_NOT_READY    = "{PLAYER_NAME} check not ready to play."
+NOT_ENOUGH          = "Not enough player to start the game."
+NEW_GAME_PROMPT     = "New game is about to start in {TIME} sec."

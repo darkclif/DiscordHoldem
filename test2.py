@@ -1,12 +1,10 @@
 from logger import global_log
 
-# global_log("warning", "Uwaga dupa!")
 
-print({k: n for k, n in enumerate(["a", "b"])})
 
 exit()
-import threading, asyncio
 
+import threading, asyncio
 
 async def test(a):
     await asyncio.sleep(2)

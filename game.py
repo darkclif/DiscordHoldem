@@ -1,252 +1,157 @@
-from random import shuffle
-from enum import Enum
 from functools import reduce
-from discord_client import instance as discord_api
-import asyncio
+from threading import RLock
 
-from card import *
 from player import *
-from logger import global_log
-from locale import locales
+from game_view import *
+from game_controller import *
+from game_state import *
+from cards_evaluator import Evaluator
 
-
-class GameState(Enum):
-    IDLE = 0        # Players are waiting for game beginning
-    PRE_FLOP = 1
-    FLOP = 2
-    TURN = 3
-    RIVER = 4
+from game_strategy.waiting import *
+from game_strategy.preflop import *
 
 
 class Game:
-    # Statics
-    api_reactions = ["✅", "❌", "🇷", "⤵", "➡", "↗"]
+    """ MVC: Game Model """
+    # Map GameState to game strategy class
+    strategy_mapper = {
+        GameState.WAITING:  WaitingStrategy,
+        GameState.PRE_FLOP: PreflopStrategy
+    }
 
-    # Methods
     def __init__(self, channel, game_id):
         """ Create game on given table """
-        self._channel = channel
-        self._players = {}      # 9 players
-        for i in range(10):
-            self._players[i] = None
+        self.channel = channel
+        self.players = []       # Max 9 players
 
-        # Prepare table
+        # IDs
         self.table_id = 0
         self.game_id = 0
 
+        # Table state
         self.table_cards = []   # max 5
         self.deck = []          # max 2
 
         self.small_blind = 10
-        self.dealer_index = None
+        self.dealer_index = 0
 
-        self.curr_player_index = 0
-        self.active_players = []
-        self.game_state = GameState.IDLE
+        self.curr_player_index = 0      # Index of current deciding player
+        self.active_players = []        # List of players taking part in current game
+        self.game_state = GameState.WAITING
 
-        # Logs
-        self.logs = {
-            "info": {"count": 3, "lines": []},
-            "game": {"count": 5, "lines": []},
-        }
+        self.pending_quits = []         # Players wanting to quit from table after current game
 
         # Discord API hooks
         self.hooked_msg = {}
 
+        # MVC
+        self.game_view = None
+        self.game_controller = None
+
+        # Strategy
+        self.game_strategy = None
+
+        # Threading Lock
+        self.lock = RLock()
+
+    # Setup / Close
     async def setup(self):
-        # Print message to channel
-        msg = [await discord_api.send_message(self._channel, '[{}] I will keep this message for myself!'.format(k)) for k in range(3)]
-        self.hooked_msg = {n: msg[k] for k, n in enumerate(["info_log", "main", "game_log"])}
+        """ Setup MVC classes """
+        # Setup MVC
+        self.game_view = GameView(self)
+        self.game_controller = GameController(self)
 
-        # Add reactions to main message
-        for r in Game.api_reactions:
-            await asyncio.wait({discord_api.add_reaction(self.hooked_msg["main"], r)}, return_when="ALL_COMPLETED")
+        await self.game_view.setup()
+        await self.game_controller.setup()
 
-        # Render
-        await self.update_message("main")
+        # Set state
+        await self.change_state(GameState.WAITING)
 
     async def close(self):
-        await discord_api.edit_message(self.hooked_msg["main"], '=== Game closed. ===')
-        await discord_api.edit_message(self.hooked_msg["game_log"], '=== Game closed. ===')
-        await discord_api.edit_message(self.hooked_msg["info_log"], '=== Game closed. ===')
+        """ Close MVC classes """
+        self.game_view.close()
+        self.game_controller.close()
 
-    def begin_game(self):
-        """ Begin new game """
-        # Get list of playing players
-        players = {k: v for k, v in self._players.items() if v and v.money >= 2 * self.small_blind}
+    # Messages
+    async def notify_view(self, msg):
+        """ Notify View about change of the game state """
+        await self.game_view.notify(msg)
 
-        # There is no players at the table
-        if not players:
-            return False
+    # Strategy
+    async def change_state(self, state):
+        if not isinstance(state, GameState):
+            raise Exception("Bad state passed to change_state(state) function.")
 
-        # Prepare deck
-        self.deck = Card.create_deck()
-        shuffle(self.deck)
+        self.game_state = state
+        self.game_strategy = Game.strategy_mapper[state](self)
+        await self.game_strategy.setup()
 
-        # Move dealer coin
-        player_ind = [k for k, v in players]
-        if self.dealer_index is None:
-            self.dealer_index = player_ind[0]
-        else:
-            self.dealer_index = player_ind[(self.dealer_index + 1) % len(player_ind)]
+    # Game helpers
+    def get_sb(self):
+        return self.small_blind
 
-        # Pass two cards to players
-        for k, v in players.items():
-            v.give_cards([self.deck.pop(), self.deck.pop()])
+    def get_bb(self):
+        return 2 * self.small_blind
 
-        # Mark starting player
-        self.active_players = player_ind
-        self.curr_player_index = (self.dealer_index + 3) % len(player_ind)
-
-        self.game_state = GameState.PRE_FLOP
-        return True
-
-    def get_state_main(self):
-        """ Send state of current game to the Discord Channel """
-        # Generate player string
-        """ STATUS = ALL_IN | FOLD | CHECK | - | RAISE """
-        """ No. BG/SB Player_name STATUS Cash Diff Turn_Indicator"""
-
-        # Generate player information
-        player_string = '{N: >2}. {NAME: <10} {STATUS: <10} {MONEY_IN: <6}  {MONEY_DIFF: <6}\n'
-        player_string = player_string.format(N="No", NAME="Name", STATUS="Status", MONEY_IN="Pot", MONEY_DIFF="Diff.")
-
-        for k, p in self._players.items():
-            if not p:
-                continue
-
-            l_str = '{N: >2}. {NAME: <10} {STATUS: <10} ${MONEY_IN: <6} ${MONEY_DIFF: <6}\n'
-            l_str = l_str.format(N=k+1, NAME=p.discord_user.name, STATUS="NONE", MONEY_IN=200, MONEY_DIFF=30)
-
-            player_string += l_str
-
-        # Generate card tops
-        table = [list(map(lambda x: x.get_ascii(), self.table_cards[s:e])) for s, e in [(0, 3), (3, 4), (4, 5)]]
-        table_string = " | ".join([" ".join(s) for s in table])
-
-        # Generate final string
-        ret_str = '```'\
-            '======= TABLE No.{TABLE_ID: >3}, GAME No.{GAME_ID: >4} =======\n\n'\
-            '{CARD_TOPS: ^42}\n\n'\
-            '{CARDS}\n\n'\
-            '{PLAYERS}\n'\
-            '```'
-
-        ret_str = ret_str.format(
-            TABLE_ID=self.table_id,
-            GAME_ID=self.game_id,
-            CARD_TOPS=table_string,
-            CARDS="---",
-            PLAYERS=player_string
-        )
-
-        return ret_str
+    def take_blinds(self, player_ind):
+        """ Take Small Blind and Big Blind from active players starting from given player index """
+        self.active_players[player_ind].move_to_pot(self.get_sb())
+        self.active_players[(player_ind + 1) % len(self.active_players)].move_to_pot(self.get_bb())
 
     def get_pot(self):
-        """ Return sum of money bids in pot """
-        return reduce(sum, [self._players[i].pot_money for i in self.active_players])
+        """ Return sum of money in the pot """
+        return reduce(sum, [p.get_pot_money() for p in self.active_players])
 
-    def get_pot_highest(self):
+    def get_highest_bid(self):
         """ Return max current bid in pot """
-        return reduce(max, [self._players[i].pot_money for i in self.active_players])
+        return reduce(max, [p.get_pot_money() for p in self.active_players])
 
-    async def on_channel_reaction(self, reaction, user):
-        """ Check if reaction is under one of hooked messages and handle it """
-        for k, m in self.hooked_msg.items():
-            # Its not my supervised message!
-            if not m or m.id != reaction.message.id:
-                continue
+    def set_player_ready(self, player_id):
+        """ Set player state as ready to start a game """
+        player = list(filter(lambda p: p.id() == player_id, self.players))
 
-            # It is my message!
-            if k == "main":
-                await self.handle_reaction(reaction, user)
-            else:
-                # Delete reaction on wrong message
-                await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
+        if len(player):
+            player[0].set_ready()
 
-    async def handle_reaction(self, reaction, user):
-        """ Handle reaction under main message """
-        # global_log("info", "Emoji {} handled".format(reaction.emoji))
-        to_func = {
-            "✅":    self.on_player_sit,
-            "❌":    self.on_player_quit,
-            "🇷":    self.on_player_ready,
-            "⤵":    self.on_player_fold,
-            "➡":    self.on_player_check,
-            "↗":    self.on_player_raise
-        }
+    def search_best_hand(self):
+        result = Evaluator.table_evaluate([p.get_cards() for p in self.active_players], self.table_cards.copy())
+        for p, r in zip(self.active_players, result):
+            p.set_best_hand(r)
 
-        if reaction.emoji in to_func.keys():
-            await to_func[reaction.emoji](reaction, user)
-        else:
-            # Delete unknown reaction
-            await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
+    def get_player(self, user_id):
+        players = [p for p in self.players if p.id() == user_id]
+        return players[0] if players else None
 
-    def add_log(self, log_name, locale_str, *args):
-        self.logs[log_name]["lines"].append(locales.get_string(locale_str).format(*args))
+    def get_current_player(self):
+        return self.active_players[self.curr_player_index]
 
-    def get_state_log(self, log_name):
-        if log_name in self.logs.keys():
-            return "\n".join(self.logs[log_name]["lines"][-5:])
-
-    async def update_message(self, msg_name="all"):
-        if msg_name in ["main", "all"]:
-            await discord_api.edit_message(self.hooked_msg["main"], self.get_state_main())
-        elif msg_name in ["info_log", "all"]:
-            await discord_api.edit_message(self.hooked_msg["info_log"], self.get_state_log("info"))
-        elif msg_name in ["game_log", "all"]:
-            await discord_api.edit_message(self.hooked_msg["game_log"], self.get_state_log("game"))
-        else:
-            global_log("error", "Wrong message name to push updates ({})".format(msg_name))
-
+    #
     # API: Handle events
-    async def on_player_sit(self, reaction, user, money_in=10000):
-        """ Player sits at the table """
-        await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
+    #
+    async def on_player_sit(self, *args, **kwargs):
+        with self.lock:
+            await self.game_strategy.on_player_sit(*args, **kwargs)
 
-        # Player already at table
-        my_seats = list(filter(lambda ply: ply[1] and ply[1].discord_user.id == user.id, self._players.items()))
-        if len(my_seats) >= 1:
-            global_log("dbg", "Player {} tried to sit at {} but he is already there.".format(user.name, self.table_id))
-            return
+    async def on_player_quit(self, *args, **kwargs):
+        with self.lock:
+            await self.game_strategy.on_player_quit(*args, **kwargs)
 
-        # No empty seats
-        empty_seats = list(filter(lambda ply: not ply[1], self._players.items()))
-        if not len(empty_seats):
-            global_log("dbg", "Player {} tried to sit at {} but table is full.".format(user.name, self.table_id))
-            return
+    async def on_player_ready(self, *args, **kwargs):
+        with self.lock:
+            await self.game_strategy.on_player_ready(*args, **kwargs)
 
-        # SUCCESS
-        self._players[empty_seats[0][0]] = Player(user, money_in)
+    async def on_player_unready(self, *args, **kwargs):
+        with self.lock:
+            await self.game_strategy.on_player_unready(*args, **kwargs)
 
-        await self.update_message("main")
-        global_log("dbg", "Player {} sit at {}.".format(user.name, self.table_id))
+    async def on_player_fold(self, *args, **kwargs):
+        with self.lock:
+            await self.game_strategy.on_player_fold(*args, **kwargs)
 
-    async def on_player_quit(self, reaction, user):
-        """ Player stands from the table """
-        await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
+    async def on_player_check(self, *args, **kwargs):
+        with self.lock:
+            await self.game_strategy.on_player_check(*args, **kwargs)
 
-        # Player not at the table
-        my_seats = list(filter(lambda ply: ply[1] and ply[1].discord_user.id == user.id, self._players.items()))
-        if not len(my_seats):
-            global_log("dbg", "Player {} want to quit from {} but he's not at the table.".format(user.name, self.table_id))
-            return
-
-        # SUCCESS
-        my_seat = my_seats[0]
-        self._players[my_seat[0]] = None
-
-        await self.update_message("main")
-        global_log("dbg", "Player {} stand up from {}.".format(user.name, self.table_id))
-
-    async def on_player_ready(self, reaction, user):
-        pass
-
-    async def on_player_fold(self, reaction, user):
-        pass
-
-    async def on_player_check(self, reaction, user):
-        pass
-
-    async def on_player_raise(self, reaction, user):
-        pass
+    async def on_player_raise(self, *args, **kwargs):
+        with self.lock:
+            await self.game_strategy.on_player_raise(*args, **kwargs)

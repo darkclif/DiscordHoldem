@@ -19,13 +19,13 @@ class Game:
         GameState.PRE_FLOP: PreflopStrategy
     }
 
-    def __init__(self, channel, game_id):
+    def __init__(self, channel, table_id):
         """ Create game on given table """
         self.channel = channel
         self.players = []       # Max 9 players
 
         # IDs
-        self.table_id = 0
+        self.table_id = table_id
         self.game_id = 0
 
         # Table state
@@ -51,8 +51,10 @@ class Game:
         # Strategy
         self.game_strategy = None
 
-        # Threading Lock
+        # Threading
         self.lock = RLock()
+        self.delayed_start = None
+        self.start_delay = 10
 
     # Setup / Close
     async def setup(self):
@@ -83,6 +85,9 @@ class Game:
             raise Exception("Bad state passed to change_state(state) function.")
 
         self.game_state = state
+
+        if self.game_strategy:
+            await self.game_strategy.close()
         self.game_strategy = Game.strategy_mapper[state](self)
         await self.game_strategy.setup()
 
@@ -98,25 +103,28 @@ class Game:
         self.active_players[player_ind].move_to_pot(self.get_sb())
         self.active_players[(player_ind + 1) % len(self.active_players)].move_to_pot(self.get_bb())
 
+    def player_can_play(self, player):
+        return player.ready and player.money >= self.get_bb()
+
     def get_pot(self):
         """ Return sum of money in the pot """
-        return reduce(sum, [p.get_pot_money() for p in self.active_players])
+        return reduce(sum, [p.pot_money for p in self.active_players])
 
     def get_highest_bid(self):
         """ Return max current bid in pot """
-        return reduce(max, [p.get_pot_money() for p in self.active_players])
+        return reduce(max, [p.pot_money for p in self.active_players])
 
     def set_player_ready(self, player_id):
         """ Set player state as ready to start a game """
         player = list(filter(lambda p: p.id() == player_id, self.players))
 
         if len(player):
-            player[0].set_ready()
+            player[0].ready = True
 
     def search_best_hand(self):
-        result = Evaluator.table_evaluate([p.get_cards() for p in self.active_players], self.table_cards.copy())
+        result = Evaluator.table_evaluate([p.cards for p in self.active_players], self.table_cards.copy())
         for p, r in zip(self.active_players, result):
-            p.set_best_hand(r)
+            p.best_hand = r
 
     def get_player(self, user_id):
         players = [p for p in self.players if p.id() == user_id]
@@ -126,7 +134,7 @@ class Game:
         return self.active_players[self.curr_player_index]
 
     #
-    # API: Handle events
+    #   API: External Events
     #
     async def on_player_sit(self, *args, **kwargs):
         with self.lock:

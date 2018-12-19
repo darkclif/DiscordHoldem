@@ -5,6 +5,7 @@ from logger import global_log
 from locale import locales
 from card import Card
 
+
 class GameView:
     """ MVC: Game Controller """
     api_reactions = ["✅", "❌", "🇷", "⤵", "➡", "↗"]
@@ -54,13 +55,13 @@ class GameView:
         f_player = '{N: >2}. {D: <1}{T: <1} {NAME: <10} {STATUS: <10} ${MONEY_POT: <6} ${MONEY_DIFF: <6}\n'
         for k, p in enumerate(game.active_players):
             s_player += f_player.format(
-                N=p.get_seat_num()+1,
+                N=p.seat_num+1,
                 D="D" if k == game.dealer_index else " ",
                 T=">" if k == game.curr_player_index else " ",
-                NAME=p.get_name(10),
+                NAME=p.name(10),
                 STATUS="NONE",
-                MONEY_POT=p.get_pot_money(),
-                MONEY_DIFF=game.get_highest_bid() - p.get_pot_money()
+                MONEY_POT=p.pot_money,
+                MONEY_DIFF=game.get_highest_bid() - p.pot_money
             )
 
         return s_header + s_player
@@ -77,8 +78,8 @@ class GameView:
         s_player = ""
         f_player = '{N: >2}. {NAME: <10} {STATUS: <10}\n'
         for p in list(set(game.players) - set(game.active_players)):
-            status = "READY" if p.is_ready() else "-"
-            s_player += f_player.format(N=p.get_seat_num()+1, NAME=p.get_name(), STATUS=status)
+            status = "READY" if p.ready else "-"
+            s_player += f_player.format(N=p.seat_num+1, NAME=p.name(), STATUS=status)
 
         return s_header + s_player
 

@@ -1,10 +1,7 @@
 from logger import global_log
 
-
-
-exit()
-
 import threading, asyncio
+
 
 async def test(a):
     await asyncio.sleep(2)
@@ -21,6 +18,8 @@ async def main():
     for w in ["Hello", "world!"]:
         tasks.append(asyncio.create_task(test_wrapper(w)))
 
-    await asyncio.wait(tasks)
+    tasks[0].cancel()
+    #await asyncio.wait(tasks)
+    print(tasks[0])
 
 asyncio.run(main())

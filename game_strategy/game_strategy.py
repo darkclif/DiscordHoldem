@@ -10,6 +10,13 @@ class GameStrategy(ABC):
         """ Bootstrap a new strategy """
 
     @abstractmethod
+    async def close(self):
+        """ Close a new strategy """
+
+    #
+    #   API: External Events
+    #
+    @abstractmethod
     async def on_player_sit(self, user, money_in=10000):
         """
         Player sits at the table.

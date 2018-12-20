@@ -5,13 +5,6 @@ from card import Card
 from hand_namer import *
 
 
-class PlayerState(Enum):
-    IN_GAME = 0
-    FOLD = 1
-    ALL_IN = 2
-    IDLE = 3
-
-
 class Player:
     """
         Class representing a Player at the table.
@@ -32,9 +25,10 @@ class Player:
         self._cards = []
         self.card_message = None
 
+        self.fold = False
         self.all_in = False
         self.pot_money = 0          # Money that player transferred to stake in current game
-        self.bb_can_raise = False   # On PreFlop person on big-blind can decide at least once
+        self.bb_can_decide = False  # On PreFlop person on big-blind can decide at least once
 
     def id(self):
         return self.discord_user.id
@@ -47,15 +41,19 @@ class Player:
 
     # In game logic
     def reset(self):
-        self.cards = []
+        self._cards = []
         self.all_in = False
+        self.fold = True
         self.pot_money = 0
-        self.bb_can_raise = False
+        self.bb_can_decide = False
+
+    def is_active(self):
+        return not (self.all_in or self.fold)
 
     # Money
-    def move_to_pot(self, money=0):
+    def move_to_pot(self, money, all_in=False):
         # All in
-        money = money if money else self.money
+        money = self.money if all_in else money
 
         if (self.money - money) >= 0:
             self.money -= money

@@ -54,7 +54,7 @@ class InGameStrategy(GameStrategy):
             return
 
         # Cannot stand up because game is in progress
-        if user.id in [p.id() for p in game.active_players]:
+        if user.id in [p.id() for p in game.in_game_players]:
             global_log("dbg", "T[{}] Player {} queued for quit.".format(game.table_id, user.name))
 
             # Queue for stand up on WAITING state

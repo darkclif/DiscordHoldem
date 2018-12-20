@@ -8,12 +8,16 @@ class GameController:
     def __init__(self, game_model):
         self.game = game_model
 
+    # Constructor / Destructor
     async def setup(self):
         pass
 
     async def close(self):
         pass
 
+    #
+    #   Handlers
+    #
     async def handle_reaction_add(self, reaction, user):
         """ Handle reaction under main message """
         if reaction.emoji == "✅":
@@ -37,7 +41,11 @@ class GameController:
             await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
 
         elif reaction.emoji == "↗":
-            await self.game.on_player_raise(user)
+            await self.game.on_player_raise(user, 0, bb=True)
+            await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
+
+        elif reaction.emoji == "🅰":
+            await self.game.on_player_raise(user, 0, all_in=True)
             await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
 
     async def handle_reaction_remove(self, reaction, user):

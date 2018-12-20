@@ -36,7 +36,7 @@ class Game:
         self.dealer_index = 0
 
         self.curr_player_index = 0      # Index of current deciding player
-        self.active_players = []        # List of players taking part in current game
+        self.in_game_players = []       # List of players taking part in current game
         self.game_state = GameState.WAITING
 
         self.pending_quits = []         # Players wanting to quit from table after current game
@@ -54,7 +54,7 @@ class Game:
         # Threading
         self.lock = RLock()
         self.delayed_start = None
-        self.start_delay = 10
+        self.start_delay = 5
 
     # Setup / Close
     async def setup(self):
@@ -98,21 +98,24 @@ class Game:
     def get_bb(self):
         return 2 * self.small_blind
 
-    def take_blinds(self, player_ind):
+    def take_blinds(self, sb_ind):
         """ Take Small Blind and Big Blind from active players starting from given player index """
-        self.active_players[player_ind].move_to_pot(self.get_sb())
-        self.active_players[(player_ind + 1) % len(self.active_players)].move_to_pot(self.get_bb())
+        bb_ind = (sb_ind + 1) % len(self.in_game_players)
+
+        self.in_game_players[sb_ind].move_to_pot(self.get_sb())
+        self.in_game_players[bb_ind].move_to_pot(self.get_bb())
+        self.in_game_players[bb_ind].bb_can_decide = True
 
     def player_can_play(self, player):
         return player.ready and player.money >= self.get_bb()
 
     def get_pot(self):
         """ Return sum of money in the pot """
-        return reduce(sum, [p.pot_money for p in self.active_players])
+        return reduce(sum, [p.pot_money for p in self.in_game_players])
 
     def get_highest_bid(self):
         """ Return max current bid in pot """
-        return reduce(max, [p.pot_money for p in self.active_players])
+        return reduce(max, [p.pot_money for p in self.in_game_players])
 
     def set_player_ready(self, player_id):
         """ Set player state as ready to start a game """
@@ -122,8 +125,8 @@ class Game:
             player[0].ready = True
 
     def search_best_hand(self):
-        result = Evaluator.table_evaluate([p.cards for p in self.active_players], self.table_cards.copy())
-        for p, r in zip(self.active_players, result):
+        result = Evaluator.table_evaluate([p.cards for p in self.in_game_players], self.table_cards.copy())
+        for p, r in zip(self.in_game_players, result):
             p.best_hand = r
 
     def get_player(self, user_id):
@@ -131,7 +134,7 @@ class Game:
         return players[0] if players else None
 
     def get_current_player(self):
-        return self.active_players[self.curr_player_index]
+        return self.in_game_players[self.curr_player_index]
 
     #
     #   API: External Events

@@ -122,7 +122,7 @@ class WaitingStrategy(GameStrategy):
         # SUCCESS
         global_log("dbg", "T[{}] Player {} tried to check but game is off.".format(game.table_id, user.name))
 
-    async def on_player_raise(self, user, money=None):
+    async def on_player_raise(self, user, money, all_in=False, bb=False):
         """ Player raise his bid by given amount """
         game = self.game
 

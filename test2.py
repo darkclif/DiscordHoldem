@@ -2,7 +2,6 @@ from logger import global_log
 
 import threading, asyncio
 
-
 async def test(a):
     await asyncio.sleep(2)
     print("{b: >12}".format(b=a))

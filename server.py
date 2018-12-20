@@ -5,56 +5,57 @@ import asyncio
 
 class GameServer:
     """ Class for storing all current running games """
+    games = {}  # map: channel_id -> game_controller
+    game_id_counter = 1
 
     def __init__(self):
-        self.games = {}     # map: channel_id -> game_controller
-
-        self.game_id_counter = 1
+        pass
 
     # Handle server commands
-    async def set_table(self, msg, cmd):
+    @classmethod
+    async def set_table(cls, msg, cmd):
         """ Set game on target channel """
-        if msg.channel.id in self.games:
+        if msg.channel.id in cls.games:
             global_log("info", "Init: Game on channel {} already exists. Aborted.".format(msg.channel.id))
             return
 
-        new_game = Game(msg.channel, self.game_id_counter)
+        new_game = Game(msg.channel, cls.game_id_counter)
         await asyncio.wait({new_game.setup()})
 
-        self.games[msg.channel.id] = new_game.game_controller
+        cls.games[msg.channel.id] = new_game.game_controller
 
-        global_log("info", "Created new game table with id {}".format(self.game_id_counter))
-        self.game_id_counter += 1
+        global_log("info", "Created new game table with id {}".format(cls.game_id_counter))
+        cls.game_id_counter += 1
 
-    async def close_table(self, msg, cmd):
+    @classmethod
+    async def close_table(cls, msg, cmd):
         """ Close game on target table """
-        game = None
-        if msg.channel.id in self.games.keys():
-            game = self.games.pop(msg.channel.id)
-            await game.close()
-
-        global_log("info", "Closed game table with id {}".format(game.game_id))
+        if msg.channel.id in cls.games.keys():
+            game_ctrl = cls.games.pop(msg.channel.id)
+            global_log("info", "Closed game table with id {}".format(game_ctrl.game.game_id))
+            await game_ctrl.game.close()
 
     # In-game API Dispatch
-    async def on_ingame_command(self, msg, cmd):
+    @classmethod
+    async def on_ingame_command(cls, msg, cmd):
         """ React to player reaction under one of game messages """
         # Check if reaction is under one of observed channel
         channel_id = msg.channel.id
-        if channel_id in self.games.keys():
-            await self.games[channel_id].on_ingame_command(msg, cmd)
+        if channel_id in cls.games.keys():
+            await cls.games[channel_id].on_ingame_command(msg, cmd)
 
-    async def on_ingame_reaction_add(self, reaction, user):
+    @classmethod
+    async def on_ingame_reaction_add(cls, reaction, user):
         """ React to player reaction under one of game messages """
         # Check if reaction is under one of observed channel
         channel_id = reaction.message.channel.id
-        if channel_id in self.games.keys():
-            await self.games[channel_id].on_ingame_reaction_add(reaction, user)
+        if channel_id in cls.games.keys():
+            await cls.games[channel_id].on_ingame_reaction_add(reaction, user)
 
-    async def on_ingame_reaction_remove(self, reaction, user):
+    @classmethod
+    async def on_ingame_reaction_remove(cls, reaction, user):
         """ React to player reaction removal under one of game messages """
         # Check if reaction was deleted under one of observed channel
         channel_id = reaction.message.channel.id
-        if channel_id in self.games.keys():
-            await self.games[channel_id].on_ingame_reaction_remove(reaction, user)
-
-instance = GameServer()
+        if channel_id in cls.games.keys():
+            await cls.games[channel_id].on_ingame_reaction_remove(reaction, user)

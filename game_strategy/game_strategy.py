@@ -72,11 +72,13 @@ class GameStrategy(ABC):
         """
 
     @abstractmethod
-    async def on_player_raise(self, user, money=None):
+    async def on_player_raise(self, user, money, all_in=False, bb=False):
         """
         Player raise his bid by given amount
 
         :param user: User taking action
         :param money: Amount of money to rise; None - BB
+        :param all_in: Go all in. Ignore money amount.
+        :param bb: Go big blind. Ignore money amount.
         :return: None
         """

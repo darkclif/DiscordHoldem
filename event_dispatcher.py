@@ -1,4 +1,4 @@
-from server import instance as games_server
+from server import GameServer
 from server_utils import *
 
 
@@ -7,11 +7,11 @@ class Dispatcher:
         # Command -> func(msg, cmd)
 
         # Game management
-        'init':     games_server.set_table,
-        'close':    games_server.close_table,
+        'init':     GameServer.set_table,
+        'close':    GameServer.close_table,
 
         # In-Game commands
-        'raise':     games_server.on_ingame_command,
+        'raise':    GameServer.on_ingame_command,
 
         # Misc
         'help':     show_help
@@ -29,8 +29,8 @@ class Dispatcher:
 
     @staticmethod
     async def on_reaction_add(reaction, user):
-        await games_server.on_ingame_reaction_add(reaction, user)
+        await GameServer.on_ingame_reaction_add(reaction, user)
 
     @staticmethod
     async def on_reaction_remove(reaction, user):
-        await games_server.on_ingame_reaction_remove(reaction, user)
+        await GameServer.on_ingame_reaction_remove(reaction, user)

@@ -8,7 +8,7 @@ from card import Card
 
 class GameView:
     """ MVC: Game Controller """
-    api_reactions = ["✅", "❌", "🇷", "⤵", "➡", "↗"]
+    api_reactions = ["✅", "❌", "🇷", "⤵", "➡", "↗", "🅰"]
 
     def __init__(self, game_model):
         self.game = game_model
@@ -53,7 +53,7 @@ class GameView:
         # Generate in-game players
         s_player = ""
         f_player = '{N: >2}. {D: <1}{T: <1} {NAME: <10} {STATUS: <10} ${MONEY_POT: <6} ${MONEY_DIFF: <6}\n'
-        for k, p in enumerate(game.active_players):
+        for k, p in enumerate(game.in_game_players):
             s_player += f_player.format(
                 N=p.seat_num+1,
                 D="D" if k == game.dealer_index else " ",
@@ -77,7 +77,7 @@ class GameView:
         # Generate waiting players
         s_player = ""
         f_player = '{N: >2}. {NAME: <10} {STATUS: <10}\n'
-        for p in list(set(game.players) - set(game.active_players)):
+        for p in list(set(game.players) - set(game.in_game_players)):
             status = "READY" if p.ready else "-"
             s_player += f_player.format(N=p.seat_num+1, NAME=p.name(), STATUS=status)
 

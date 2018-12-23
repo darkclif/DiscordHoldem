@@ -4,11 +4,14 @@ from threading import RLock
 from player import *
 from game_view import *
 from game_controller import *
-from game_state import *
 from cards_evaluator import Evaluator
 
 from game_strategy.waiting import *
 from game_strategy.preflop import *
+from game_strategy.flop import *
+from game_strategy.turn import *
+from game_strategy.river import *
+from game_strategy.end_game import *
 
 
 class Game:
@@ -16,7 +19,11 @@ class Game:
     # Map GameState to game strategy class
     strategy_mapper = {
         GameState.WAITING:  WaitingStrategy,
-        GameState.PRE_FLOP: PreflopStrategy
+        GameState.PRE_FLOP: PreflopStrategy,
+        GameState.FLOP:     FlopStrategy,
+        GameState.TURN:     TurnStrategy,
+        GameState.RIVER:    RiverStrategy,
+        GameState.END_GAME: EndGameStrategy,
     }
 
     def __init__(self, channel, table_id):
@@ -33,10 +40,11 @@ class Game:
         self.deck = []          # max 2
 
         self.small_blind = 10
-        self.dealer_index = 0
 
+        self.dealer_index = 0           # Index of dealer player
         self.curr_player_index = 0      # Index of current deciding player
         self.in_game_players = []       # List of players taking part in current game
+
         self.game_state = GameState.WAITING
 
         self.pending_quits = []         # Players wanting to quit from table after current game
@@ -54,7 +62,7 @@ class Game:
         # Threading
         self.lock = RLock()
         self.delayed_start = None
-        self.start_delay = 5
+        self.start_delay = 15
 
     # Setup / Close
     async def setup(self):
@@ -71,13 +79,20 @@ class Game:
 
     async def close(self):
         """ Close MVC classes """
-        self.game_view.close()
-        self.game_controller.close()
+        await self.game_view.close()
+        await self.game_controller.close()
 
     # Messages
-    async def notify_view(self, msg):
+    async def notify_view(self):
         """ Notify View about change of the game state """
-        await self.game_view.notify(msg)
+        await self.game_view.notify()
+
+    async def notify_view_log(self):
+        """ Notify View about change of the game state """
+        await self.game_view.notify_log()
+
+    def log(self, *args, **kwargs):
+        self.game_view.log(*args, **kwargs)
 
     # Strategy
     async def change_state(self, state):
@@ -104,18 +119,17 @@ class Game:
 
         self.in_game_players[sb_ind].move_to_pot(self.get_sb())
         self.in_game_players[bb_ind].move_to_pot(self.get_bb())
-        self.in_game_players[bb_ind].bb_can_decide = True
 
     def player_can_play(self, player):
         return player.ready and player.money >= self.get_bb()
 
     def get_pot(self):
         """ Return sum of money in the pot """
-        return reduce(sum, [p.pot_money for p in self.in_game_players])
+        return reduce(lambda a, b: a + b, [p.pot_money for p in self.in_game_players], 0)
 
     def get_highest_bid(self):
         """ Return max current bid in pot """
-        return reduce(max, [p.pot_money for p in self.in_game_players])
+        return reduce(max, [p.pot_money for p in self.in_game_players], 0)
 
     def set_player_ready(self, player_id):
         """ Set player state as ready to start a game """
@@ -124,17 +138,45 @@ class Game:
         if len(player):
             player[0].ready = True
 
-    def search_best_hand(self):
+    async def search_best_hand(self):
         result = Evaluator.table_evaluate([p.cards for p in self.in_game_players], self.table_cards.copy())
         for p, r in zip(self.in_game_players, result):
             p.best_hand = r
 
+        for p in self.in_game_players:
+            await p.update_card_message(self)
+
+    def cards_to_table(self, num):
+        self.table_cards += [self.deck.pop() for _ in range(num)]
+
     def get_player(self, user_id):
+        """ Get player with given user_id """
         players = [p for p in self.players if p.id() == user_id]
         return players[0] if players else None
 
     def get_current_player(self):
+        """ Get current moving in-game player """
         return self.in_game_players[self.curr_player_index]
+
+    def get_able_players(self):
+        """
+            Get list of players that are able to move.
+            List is sorted by turn order. (Player on the dealer's left is first)
+        """
+        highest_bid = self.get_highest_bid()
+
+        def is_able(player):
+            return player.is_active() and (player.pot_money < highest_bid or player.can_decide)
+
+        first_n = (self.dealer_index + 1) % len(self.in_game_players)
+        in_game_sorted = self.in_game_players[first_n:] + self.in_game_players[:first_n]
+        return [p for p in in_game_sorted if is_able(p)]
+
+    def get_active_players(self):
+        return [p for p in self.in_game_players if p.is_active()]
+
+    def set_first_player(self):
+        self.curr_player_index = self.in_game_players.index(self.get_able_players()[0])
 
     #
     #   API: External Events

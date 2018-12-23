@@ -1,31 +1,22 @@
-from player import Player
+from card import Card
+from game_state import GameState
 from game_strategy.out_game import OutGameStrategy
+from hand_namer import HandNamer
 from logger import global_log
-from game_state import *
-
-import asyncio
+from player import Player
 
 
-class WaitingStrategy(OutGameStrategy):
+class EndGameStrategy(OutGameStrategy):
     def __init__(self, game):
         super().__init__(game)
 
     async def setup(self):
         """ Bootstrap a new strategy """
-        # Remove players that wanted to quit during game
-        for p in self.game.pending_quits:
-            self.game.players.remove(p)
-        self.game.pending_quits = []
-
-        # Check if game should start again
-        await self.check_game_start()
-        await self.game.notify_view()
+        await self.close_game()
 
     async def close(self):
         """ Close a new strategy """
-        if self.game.delayed_start:
-            # self.game.delayed_start.cancel()
-            self.game.delayed_start = None
+        pass
 
     #
     #   API: External Events
@@ -46,11 +37,9 @@ class WaitingStrategy(OutGameStrategy):
             return
 
         # SUCCESS
-        player = Player(user, money_in, free_seats[0])
-        game.players.append(player)
-        game.log("info", "PLAYER_SIT", PLAYER_NAME=player.name())
-        await game.notify_view()
+        game.players.append(Player(user, money_in, free_seats[0]))
 
+        await game.notify_view()
         global_log("dbg", "T[{}] Player {} sat.".format(game.table_id, user.name))
 
     async def on_player_quit(self, user):
@@ -65,10 +54,8 @@ class WaitingStrategy(OutGameStrategy):
 
         # SUCCESS
         game.players.remove(player)
-        game.log("info", "PLAYER_STAND", PLAYER_NAME=player.name())
 
         global_log("dbg", "T[{}] Player {} stand up.".format(game.table_id, user.name))
-        await self.check_game_start()
         await game.notify_view()
 
     async def on_player_ready(self, user):
@@ -84,7 +71,6 @@ class WaitingStrategy(OutGameStrategy):
         player.ready = True
 
         global_log("dbg", "T[{}] Player {} is ready.".format(game.table_id, user.name))
-        await self.check_game_start()
         await game.notify_view()
 
     async def on_player_unready(self, user):
@@ -100,44 +86,22 @@ class WaitingStrategy(OutGameStrategy):
         player.ready = False
 
         global_log("dbg", "T[{}] Player {} is unready.".format(game.table_id, user.name))
-        await self.check_game_start()
         await game.notify_view()
 
     #
     # GAME LOGIC FUNCTIONS
     #
-    @staticmethod
-    async def delayed_start(game):
-        await asyncio.sleep(game.start_delay)
-
-        with game.lock:
-            ready_players = [p for p in game.players if game.player_can_play(p)]
-            if len(ready_players) >= 2:
-                await game.change_state(GameState.PRE_FLOP)
-
-    async def check_game_start(self):
-        """ Game should start if two or more players are ready and have money """
+    async def close_game(self):
+        global_log("dbg", "Game ended!")
         game = self.game
-        ready_players = [p for p in game.players if game.player_can_play(p)]
 
-        if len(ready_players) < 2:
-            if game.delayed_start:
-                # Handle task
-                game.delayed_start.cancel()
-                game.delayed_start = None
+        # Calculate outcome
+        players = [p for p in game.in_game_players if not p.fold]
+        players.sort(key=lambda p: p.best_hand, reverse=True)
 
-                # Push info
-                game.log("info", "NOT_ENOUGH")
-                await game.notify_view_log()
+        player = players[0]
+        hand_name = HandNamer.name_hand(player.best_hand)
+        cards = " ".join([Card.get_string(c) for c in player.cards])
+        game.log("game", "PLAYER_WON", PLAYER_NAME=player.name(), MONEY=game.get_pot(), HAND_VALUE=hand_name, CARDS=cards)
 
-                global_log("dbg", "Game not started. Timer suspended.")
-        else:
-            if not self.game.delayed_start:
-                # Handle task
-                game.delayed_start = asyncio.create_task(self.delayed_start(game))
-
-                # Push info
-                game.log("info", "NEW_GAME_PROMPT", TIME=game.start_delay)
-                await game.notify_view_log()
-
-                global_log("dbg", "Game will start in {} sec.".format(game.start_delay))
+        await self.game.change_state(GameState.WAITING)

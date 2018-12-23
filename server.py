@@ -20,9 +20,9 @@ class GameServer:
             return
 
         new_game = Game(msg.channel, cls.game_id_counter)
-        await asyncio.wait({new_game.setup()})
-
-        cls.games[msg.channel.id] = new_game.game_controller
+        with new_game.lock:
+            await asyncio.wait({new_game.setup()})
+            cls.games[msg.channel.id] = new_game.game_controller
 
         global_log("info", "Created new game table with id {}".format(cls.game_id_counter))
         cls.game_id_counter += 1

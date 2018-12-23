@@ -40,7 +40,7 @@ class Evaluator:
 
             for hand in itertools.combinations(cards, 5):
                 curr_hand = Evaluator.__hand_evaluate_5(hand)
-                best_hand = curr_hand if curr_hand > best_hand else best_hand
+                best_hand = curr_hand if not best_hand or curr_hand > best_hand else best_hand
 
             return best_hand
 

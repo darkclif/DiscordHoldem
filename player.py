@@ -28,7 +28,7 @@ class Player:
         self.fold = False
         self.all_in = False
         self.pot_money = 0          # Money that player transferred to stake in current game
-        self.bb_can_decide = False  # On PreFlop person on big-blind can decide at least once
+        self.can_decide = False     # Every person can decide at least once
 
     def id(self):
         return self.discord_user.id
@@ -43,9 +43,12 @@ class Player:
     def reset(self):
         self._cards = []
         self.all_in = False
-        self.fold = True
+        self.fold = False
         self.pot_money = 0
-        self.bb_can_decide = False
+        self.can_decide = True
+
+    def round_reset(self):
+        self.can_decide = True
 
     def is_active(self):
         return not (self.all_in or self.fold)

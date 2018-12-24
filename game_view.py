@@ -41,14 +41,15 @@ class GameView:
     async def setup(self):
         """ Setup object """
         # Print messages to channel
-        msg = [await discord_api.send_message(self.game.channel, '[{}] I will keep this message for myself!'.format(k)) for k in range(3)]
+        content = '[{}] I will keep this message for myself!'
+        msg = [await discord_api.send_message(self.game.channel, content.format(k)) for k in range(3)]
         self.game.hooked_msg = {n: msg[k] for k, n in enumerate(["info_log", "main", "game_log"])}
 
         # Add reactions to main message
         for r in GameView.api_reactions:
             await asyncio.wait({discord_api.add_reaction(self.game.hooked_msg["main"], r)}, return_when="ALL_COMPLETED")
 
-        # Render
+        # Print state
         await self.notify()
 
     async def close(self):
@@ -56,7 +57,8 @@ class GameView:
         await discord_api.edit_message(self.game.hooked_msg["main"], '=== Game closed. ===')
         await discord_api.edit_message(self.game.hooked_msg["game_log"], '=== Game closed. ===')
         await discord_api.edit_message(self.game.hooked_msg["info_log"], '=== Game closed. ===')
-        # TODO: Clear reactions
+
+        await discord_api.clear_reactions(self.game.hooked_msg["main"])
 
     # API
     def change_printer(self, chunk, printer):
@@ -197,4 +199,4 @@ class GameView:
 
             return "```"+"\n".join(logs)+"```"
         else:
-            return "```"+"".join(["\n" for _ in range(5)])+"```"
+            return "```\n```"

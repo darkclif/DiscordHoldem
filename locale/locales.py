@@ -21,12 +21,12 @@ class Locales:
             global_log("error", "No language {} available in localization files.".format(lang))
 
     def load_lang(self):
-        prog = re.compile("^([^#|.]*)=.*\"(.*)\".*$")
+        regx = re.compile("^([^#|.]*)=.*\"(.*)\".*$")
         file = "./locale/files/{}_texas.loc".format(self.lang)
         cnt = 0
 
         for l in open(file, "r"):
-            result = prog.match(l)
+            result = regx.match(l)
 
             if result and len(result.groups()) == 2:
                 # print(result.groups())

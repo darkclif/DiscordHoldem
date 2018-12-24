@@ -1,7 +1,6 @@
 from functools import reduce
 from threading import RLock
 
-from player import *
 from game_view import *
 from game_controller import *
 from cards_evaluator import Evaluator
@@ -89,10 +88,11 @@ class Game:
         await self.game_view.notify()
 
     async def notify_view_log(self):
-        """ Notify View about change of the game state """
+        """ Notify View about change of the game state (only change of log)"""
         await self.game_view.notify_log()
 
     def log(self, *args, **kwargs):
+        """ Save message in GAME or INFO log. """
         self.game_view.log(*args, **kwargs)
 
     # Strategy
@@ -121,9 +121,6 @@ class Game:
         self.in_game_players[sb_ind].move_to_pot(self.get_sb())
         self.in_game_players[bb_ind].move_to_pot(self.get_bb())
 
-    def player_can_play(self, player):
-        return player.ready and player.money >= self.get_bb()
-
     def get_pot(self):
         """ Return sum of money in the pot """
         return reduce(lambda a, b: a + b, [p.pot_money for p in self.in_game_players], 0)
@@ -131,6 +128,9 @@ class Game:
     def get_highest_bid(self):
         """ Return max current bid in pot """
         return reduce(max, [p.pot_money for p in self.in_game_players], 0)
+
+    def player_can_play(self, player):
+        return player.ready and player.money >= self.get_bb()
 
     def set_player_ready(self, player_id):
         """ Set player state as ready to start a game """

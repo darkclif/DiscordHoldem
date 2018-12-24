@@ -18,7 +18,7 @@ class WaitingStrategy(OutGameStrategy):
         self.game.pending_quits = []
 
         # Check if game should start again
-        await self.check_game_start()
+        self.check_game_start()
         await self.game.notify_view()
 
     async def close(self):

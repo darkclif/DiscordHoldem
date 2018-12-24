@@ -1,5 +1,3 @@
-from enum import Enum
-
 from discord_client import instance as discord_api
 from card import Card
 from hand_namer import *

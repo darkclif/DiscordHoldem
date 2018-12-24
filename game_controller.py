@@ -48,6 +48,10 @@ class GameController:
             await self.game.on_player_raise(user, 0, all_in=True)
             await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
 
+        else:
+            # Delete unknown reaction
+            await discord_api.remove_reaction(reaction.message, reaction.emoji, user)
+
     async def handle_reaction_remove(self, reaction, user):
         """ Handle reaction removal under main message """
         if reaction.emoji == "🇷":

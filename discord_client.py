@@ -4,7 +4,7 @@ from logger import global_log
 
 instance = discord.Client()
 
-from event_dispatcher import *
+from event_dispatcher import Dispatcher
 
 
 @instance.event

@@ -1,5 +1,6 @@
 import time
 
+
 class Logger:
     def __init__(self, *, prefix="", show=False):
         self.prefix = prefix

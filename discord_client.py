@@ -1,11 +1,10 @@
 import discord
 import _token
-import asyncio
+from logger import global_log
 
 instance = discord.Client()
 
 from event_dispatcher import *
-from logger import global_log
 
 
 @instance.event

@@ -3,7 +3,7 @@ import time
 import datetime
 
 from discord_client import instance as discord_api
-from logger import global_log
+from hand_namer import HandNamer
 from locale import locales
 from card import Card
 
@@ -19,6 +19,22 @@ class GameView:
         self.logs = {
             "info": {"count": 3, "lines": [], "change": True},
             "game": {"count": 5, "lines": [], "change": True},
+        }
+
+        # Printers
+        self.printer_mappers = {
+            "ingame": {
+                "standard": self.__print_ingame_players,
+                "end":      self.__print_ingame_players_end
+            },
+            "waiting": {
+                "standard": self.__print_waiting_players,
+            }
+        }
+
+        self.printers = {
+            "ingame": self.printer_mappers["ingame"]["standard"],
+            "waiting": self.printer_mappers["waiting"]["standard"]
         }
 
     # Setup / Close
@@ -40,21 +56,56 @@ class GameView:
         await discord_api.edit_message(self.game.hooked_msg["main"], '=== Game closed. ===')
         await discord_api.edit_message(self.game.hooked_msg["game_log"], '=== Game closed. ===')
         await discord_api.edit_message(self.game.hooked_msg["info_log"], '=== Game closed. ===')
-
         # TODO: Clear reactions
 
-    # State renderers
-    def print_ingame_players(self):
+    # API
+    def change_printer(self, chunk, printer):
+        """ Change printer for chunk of information """
+        self.printers[chunk] = self.printer_mappers[chunk][printer]
+
+    def log(self, log_name, locale_str, **kwargs):
+        """
+        Print localized message from locale module to one of game log.
+        See *.loc files.
+
+        :param log_name: ID of log. (eg. "game" or "info")
+        :param locale_str: ID of a localized string. (eg. PLAYER_FOLD)
+        :param kwargs: Parameters to fill a string.
+        :return: None
+        """
+        log = locales.get_string(locale_str).format(**kwargs)
+        stp = time.time()
+
+        self.logs[log_name]["lines"].append((stp, log))
+        self.logs[log_name]["change"] = True
+
+    async def notify(self):
+        """ Push current state to hooked messages """
+        await discord_api.edit_message(self.game.hooked_msg["main"], self.__print_main())
+        await self.notify_log()
+
+    async def notify_log(self):
+        """ Push current state of logs to hooked messages """
+        if self.logs["info"]["change"]:
+            await discord_api.edit_message(self.game.hooked_msg["info_log"], self.__print_log("info"))
+            self.logs["info"]["change"] = False
+
+        if self.logs["game"]["change"]:
+            await discord_api.edit_message(self.game.hooked_msg["game_log"], self.__print_log("game"))
+            self.logs["game"]["change"] = False
+
+    # State printers
+    def __print_ingame_players(self):
         """ Print information about current playing users """
         game = self.game
 
         # Generate in-game players header
-        f_header = '{N: >2}. DT {NAME: <10} {STATUS: <10} {MONEY: <7} {MONEY_DIFF: <7} \n'
+        f_header = '{N: >2} DT {NAME: <10} {STATUS: <10} {MONEY: <7} {MONEY_DIFF: <7} \n'
         s_header = f_header.format(N="No", NAME="Name", STATUS="Status", MONEY="Money", MONEY_DIFF="Pot")
 
         # Generate in-game players
         s_player = ""
-        f_player = '{N: >2}. {D: <1}{T: <1} {NAME: <10} {STATUS: <10} ${MONEY: <6} ${MONEY_POT: <6}\n'
+        f_player = '{N: >2} {D: <1}{T: <1} {NAME: <10} {STATUS: <10} ${MONEY: <6} ${MONEY_POT: <6}\n'
         for k, p in enumerate(game.in_game_players):
             status = "FOLD" if p.fold else "ALL IN" if p.all_in else "IN GAME"
 
@@ -70,24 +121,46 @@ class GameView:
 
         return s_header + s_player
 
-    def print_waiting_players(self):
+    def __print_ingame_players_end(self):
+        """ Print information about current playing users """
+        game = self.game
+
+        # Generate in-game players header
+        f_header = '{N: >2} {NAME: <9} {CARDS: <6} {VALUE: <16} {PRIZE: <5} \n'
+        s_header = f_header.format(N="No", NAME="Name", CARDS="Cards", VALUE="Value", PRIZE="Prize")
+
+        # Generate in-game players
+        s_player = ""
+        f_player = '{N: >2} {NAME: <9} {CARDS: <6} {VALUE: <16} ${PRIZE: >4} \n'
+        for k, p in enumerate(game.in_game_players):
+            s_player += f_player.format(
+                N=p.seat_num+1,
+                NAME=p.name(9),
+                CARDS="".join([Card.get_string(c) for c in p.cards]),
+                VALUE=HandNamer.name_hand(p.best_hand),
+                PRIZE=p.prize
+            )
+
+        return s_header + s_player
+
+    def __print_waiting_players(self):
         """ Print information about waiting playing users """
         game = self.game
 
         # Generate waiting players header
-        f_header = '{N: >2}. {NAME: <10} {STATUS: <10}\n'
+        f_header = '{N: >2} {NAME: <10} {STATUS: <10}\n'
         s_header = f_header.format(N="No", NAME="Name", STATUS="Status")
 
         # Generate waiting players
         s_player = ""
-        f_player = '{N: >2}. {NAME: <10} {STATUS: <10}\n'
+        f_player = '{N: >2} {NAME: <10} {STATUS: <10}\n'
         for p in list(set(game.players) - set(game.in_game_players)):
             status = "READY" if p.ready else "-"
             s_player += f_player.format(N=p.seat_num+1, NAME=p.name(), STATUS=status)
 
         return s_header + s_player
 
-    def print_main(self):
+    def __print_main(self):
         """ Print current state of the table """
         game = self.game
 
@@ -111,13 +184,13 @@ class GameView:
             GAME_ID=self.game.game_id,
             CARDS=cards_string,
             POT=self.game.get_pot(),
-            PLAYERS_IN=self.print_ingame_players(),
-            PLAYERS_OUT=self.print_waiting_players()
+            PLAYERS_IN=self.printers["ingame"](),
+            PLAYERS_OUT=self.printers["waiting"]()
         )
 
         return return_string
 
-    def print_log(self, log_name):
+    def __print_log(self, log_name):
         if log_name in self.logs.keys() and len(self.logs[log_name]["lines"]):
             logs = self.logs[log_name]["lines"][-4:][::-1]
             logs = ["["+datetime.datetime.fromtimestamp(l[0]).strftime("%H:%M")+"] "+l[1] for l in logs]
@@ -125,32 +198,3 @@ class GameView:
             return "```"+"\n".join(logs)+"```"
         else:
             return "```"+"".join(["\n" for _ in range(5)])+"```"
-
-    # API
-    def log(self, log_name, locale_str, *args, **kwargs):
-        log = locales.get_string(locale_str).format(*args, **kwargs)
-        stp = time.time()
-
-        self.logs[log_name]["lines"].append((stp, log))
-        self.logs[log_name]["change"] = True
-
-    async def notify(self):
-        """ Push current state to hooked messages """
-        await discord_api.edit_message(self.game.hooked_msg["main"], self.print_main())
-
-        if self.logs["info"]["change"]:
-            await discord_api.edit_message(self.game.hooked_msg["info_log"], self.print_log("info"))
-            self.logs["info"]["change"] = False
-
-        if self.logs["game"]["change"]:
-            await discord_api.edit_message(self.game.hooked_msg["game_log"], self.print_log("game"))
-            self.logs["game"]["change"] = False
-
-    async def notify_log(self):
-        if self.logs["info"]["change"]:
-            await discord_api.edit_message(self.game.hooked_msg["info_log"], self.print_log("info"))
-            self.logs["info"]["change"] = False
-
-        if self.logs["game"]["change"]:
-            await discord_api.edit_message(self.game.hooked_msg["game_log"], self.print_log("game"))
-            self.logs["game"]["change"] = False

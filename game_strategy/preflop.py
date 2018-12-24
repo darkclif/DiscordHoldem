@@ -13,6 +13,11 @@ class PreflopStrategy(InGameStrategy):
     async def setup(self):
         """ Bootstrap a new strategy """
         await self.begin_game()
+
+        global_log("dbg", "[{}] Game begin.".format(self.game.table_id))
+        self.game.log("game", "NEW_GAME_START")
+        self.game.game_view.change_printer("ingame", "standard")
+
         await self.game.notify_view()
 
     async def close(self):
@@ -48,9 +53,9 @@ class PreflopStrategy(InGameStrategy):
         await game.search_best_hand()
 
         # Mark starting player
-        game.dealer_index = 0
+        game.dealer_index = (game.dealer_index + 1) % len(game.in_game_players)
         if len(game.in_game_players) == 2:
-            game.curr_player_index = 0
+            game.curr_player_index = game.dealer_index
             game.take_blinds(game.dealer_index)
         else:
             game.curr_player_index = (game.dealer_index + 3) % len(game.in_game_players)

@@ -2,7 +2,8 @@
 
 # Game flow
 NEW_GAME_START      = "New game started."
-NEW_PHASE_START     = "🂠 {PHASE} phase started."
+NEW_PHASE_START     = "--{PHASE} phase started."
+NEW_PHASE_SKIP      = "{PHASE} skipped."
 
 PLAYER_CHECKED      = "{PLAYER_NAME} checked."
 PLAYER_CALLED       = "{PLAYER_NAME} called."
@@ -10,7 +11,7 @@ PLAYER_RAISED       = "{PLAYER_NAME} raised by {MONEY}$."
 PLAYER_FOLD         = "{PLAYER_NAME} fold."
 PLAYER_FOLD_STOP    = "{PLAYER_NAME} fold and given up."
 PLAYER_ALL_IN       = "{PLAYER_NAME} is all in."
-PLAYER_WON          = "{PLAYER_NAME} won pot of ${MONEY} with {HAND_VALUE} ({CARDS})"
+PLAYER_WON          = "{PLAYER_NAME} won pot of ${MONEY} with {HAND_VALUE}"
 
 PLAYER_PROMPT       = "Waiting for {PLAYER_NAME}. {TIME} sec. left."
 PLAYER_KICKED       = "{PLAYER_NAME} is AFK. Auto {DECISION}"
@@ -19,6 +20,17 @@ PLAYER_KICKED       = "{PLAYER_NAME} is AFK. Auto {DECISION}"
 PLAYER_SIT          = "{PLAYER_NAME} sit down at the table."
 PLAYER_STAND        = "{PLAYER_NAME} stand up from the table."
 PLAYER_READY        = "{PLAYER_NAME} is ready to play."
-PLAYER_NOT_READY    = "{PLAYER_NAME} check not ready to play."
+PLAYER_NOT_READY    = "{PLAYER_NAME} is not ready to play."
 NOT_ENOUGH          = "Not enough player to start the game."
 NEW_GAME_PROMPT     = "New game is about to start in {TIME} sec."
+
+# Hand name
+HIGH_CARD           = "High card"
+PAIR                = "Pair"
+TWO_PAIRS           = "Two pairs"
+THREE_OF_A_KIND     = "Three of a kind"
+STRAIGHT            = "Straight"
+FLUSH               = "Flush"
+FULL_HOUSE          = "Full house"
+FOUR_OF_A_KIND      = "Four of a kind"
+STRAIGHT_FLUSH      = "Straight flush"

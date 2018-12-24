@@ -41,7 +41,7 @@ class Game:
 
         self.small_blind = 10
 
-        self.dealer_index = 0           # Index of dealer player
+        self.dealer_index = -1          # Index of dealer player (+1 on first round)
         self.curr_player_index = 0      # Index of current deciding player
         self.in_game_players = []       # List of players taking part in current game
 
@@ -62,7 +62,8 @@ class Game:
         # Threading
         self.lock = RLock()
         self.delayed_start = None
-        self.start_delay = 15
+        self.start_delay = 5
+        self.end_time = 20
 
     # Setup / Close
     async def setup(self):
@@ -141,7 +142,8 @@ class Game:
     async def search_best_hand(self):
         result = Evaluator.table_evaluate([p.cards for p in self.in_game_players], self.table_cards.copy())
         for p, r in zip(self.in_game_players, result):
-            p.best_hand = r
+            p.best_hand = r[0]
+            p.best_cards = r[1]
 
         for p in self.in_game_players:
             await p.update_card_message(self)
@@ -176,7 +178,9 @@ class Game:
         return [p for p in self.in_game_players if p.is_active()]
 
     def set_first_player(self):
-        self.curr_player_index = self.in_game_players.index(self.get_able_players()[0])
+        able = self.get_able_players()
+        if able:
+            self.curr_player_index = self.in_game_players.index(able[0])
 
     #
     #   API: External Events

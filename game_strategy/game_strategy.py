@@ -1,9 +1,11 @@
 from abc import *
+from logger import global_log
 
 
 class GameStrategy(ABC):
     def __init__(self, game):
         self.game = game
+        global_log("dbg", "'{}'.__init__.".format(type(self).__name__))
 
     @abstractmethod
     async def setup(self):

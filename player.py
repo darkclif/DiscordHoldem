@@ -15,19 +15,22 @@ class Player:
         self.discord_user = discord_user
 
         # Game data
-        self.money = money_in   # TODO: Check if Player have enough money!
+        self.money = money_in       # TODO: Check if Player have enough money!
 
         self.seat_num = seat
         self.ready = False
 
         # Cards
-        self.best_hand = None
+        self.best_hand = ()
+        self.best_cards = []
+
         self._cards = []
-        self.card_message = None
+        self.card_message = None    # Discord message hook for updating card info
 
         self.fold = False
         self.all_in = False
         self.pot_money = 0          # Money that player transferred to stake in current game
+        self.prize = 0              # Prize won at the end of the game
         self.can_decide = False     # Every person can decide at least once
 
     def id(self):
@@ -41,13 +44,18 @@ class Player:
 
     # In game logic
     def reset(self):
-        self._cards = []
         self.all_in = False
         self.fold = False
-        self.pot_money = 0
         self.can_decide = True
 
-    def round_reset(self):
+        self.pot_money = 0
+        self.prize = 0
+
+        self._cards = []
+        self.best_hand = ()
+        self.best_cards = []
+
+    def phase_reset(self):
         self.can_decide = True
 
     def is_active(self):
@@ -61,13 +69,6 @@ class Player:
         if (self.money - money) >= 0:
             self.money -= money
             self.pot_money += money
-            return True
-        else:
-            return False
-
-    def take_pot_money(self, money):
-        if (self.pot_money - money) >= 0:
-            self.pot_money -= money
             return True
         else:
             return False

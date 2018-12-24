@@ -17,14 +17,21 @@ class FlopStrategy(InGameStrategy):
         await game.notify_view()
 
         for p in game.in_game_players:
-            p.round_reset()
-        game.set_first_player()
+            p.phase_reset()
 
-        global_log("dbg", "T[{}] Flop begin.".format(game.table_id))
+        global_log("dbg", "[{}] Flop begin.".format(game.table_id))
         game.log("game", "NEW_PHASE_START", PHASE="Flop")
 
+        # Set first player
+        if game.get_able_players():
+            game.set_first_player()
+        else:
+            await self.end_phase()
+            return
+
         # Force next round
-        if len(game.get_able_players()) == 1:
+        active = game.get_active_players()
+        if len(active) == 1 and active[0].pot_money >= game.get_highest_bid():
             await self.end_phase()
 
     async def close(self):

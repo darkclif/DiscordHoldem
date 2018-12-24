@@ -1,16 +1,19 @@
+from locale import locales
+
+
 class HandNamer:
-    mapper = {
-        0: "High Card",
-        1: "Pair",
-        2: "Two pairs",
-        3: "Three of a kind	",
-        4: "Straight",
-        5: "Flush",
-        6: "Full house",
-        7: "Four of a kind",
-        8: "Straight flush"
+    locale_template_mapper = {
+        0: "HIGH_CARD",
+        1: "PAIR",
+        2: "TWO_PAIRS",
+        3: "THREE_OF_A_KIND",
+        4: "STRAIGHT",
+        5: "FLUSH",
+        6: "FULL_HOUSE",
+        7: "FOUR_OF_A_KIND",
+        8: "STRAIGHT_FLUSH"
     }
 
     @staticmethod
     def name_hand(hand):
-        return HandNamer.mapper[hand[0]]
+        return locales.get_string(HandNamer.locale_template_mapper[hand[0]])

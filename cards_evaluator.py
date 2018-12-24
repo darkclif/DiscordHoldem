@@ -16,7 +16,7 @@ class Evaluator:
 
         :param c_players: List of lists of player cards. [[c1, c1], [c2, c2], ...],
         :param c_table: List of table cards. [c1, c2, ...]
-        :return: [hand1, hand2, ...]
+        :return: [(hand1, cards1), (hand2, cards2), ...]
         """
         players_ret = []
         for p in c_players:
@@ -34,15 +34,16 @@ class Evaluator:
         :return: Dictionary with best hand value and cards used. {cards: [], value: ()}
         """
         if len(cards) == 2:
-            return Evaluator.__hand_evaluate_2(cards)
+            return Evaluator.__hand_evaluate_2(cards), cards
         else:
-            best_hand = None
+            best_hand, best_cards = None, None
 
-            for hand in itertools.combinations(cards, 5):
-                curr_hand = Evaluator.__hand_evaluate_5(hand)
-                best_hand = curr_hand if not best_hand or curr_hand > best_hand else best_hand
+            for cards_comb in itertools.combinations(cards, 5):
+                curr_hand = Evaluator.__hand_evaluate_5(cards_comb)
+                if not best_hand or curr_hand > best_hand:
+                    best_hand, best_cards = curr_hand, cards_comb
 
-            return best_hand
+            return best_hand, sorted(best_cards, key=lambda c: c[0], reverse=True)
 
     @staticmethod
     def __hand_evaluate_5(hand):

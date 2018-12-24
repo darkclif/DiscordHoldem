@@ -51,7 +51,7 @@ class OutGameStrategy(GameStrategy):
             return
 
         # SUCCESS
-        global_log("dbg", "T[{}] Player {} tried to fold but game is off.".format(game.table_id, user.name))
+        global_log("dbg", "[{}] Player {} tried to fold but game is off.".format(game.table_id, user.name))
 
     async def on_player_check(self, user):
         """ Player checks current bid. """
@@ -63,7 +63,7 @@ class OutGameStrategy(GameStrategy):
             return
 
         # SUCCESS
-        global_log("dbg", "T[{}] Player {} tried to check but game is off.".format(game.table_id, user.name))
+        global_log("dbg", "[{}] Player {} tried to check but game is off.".format(game.table_id, user.name))
 
     async def on_player_raise(self, user, money, all_in=False, bb=False):
         """ Player raise his bid by given amount """
@@ -75,7 +75,7 @@ class OutGameStrategy(GameStrategy):
             return
 
         # SUCCESS
-        global_log("dbg", "T[{}] Player {} tried to raise but game is off.".format(game.table_id, user.name))
+        global_log("dbg", "[{}] Player {} tried to raise but game is off.".format(game.table_id, user.name))
     #
     # GAME LOGIC FUNCTIONS
     #

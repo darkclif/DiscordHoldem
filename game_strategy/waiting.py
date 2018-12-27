@@ -14,7 +14,8 @@ class WaitingStrategy(OutGameStrategy):
         """ Bootstrap a new strategy """
         # Remove players that wanted to quit during game
         for p in self.game.pending_quits:
-            self.game.players.remove(p)
+            if p in self.game.players:
+                self.game.players.remove(p)
         self.game.pending_quits = []
 
         # Check if game should start again

@@ -4,7 +4,7 @@ import datetime
 
 from discord_client import instance as discord_api
 from hand_namer import HandNamer
-from locale import locales
+from holdem_locale import locales
 from card import Card
 
 
@@ -155,10 +155,10 @@ class GameView:
 
         # Generate waiting players
         s_player = ""
-        f_player = '{N: >2} {NAME: <10} {STATUS: <10}\n'
+        f_player = '{N: >2} {NAME: <16} {STATUS: <10}\n'
         for p in list(set(game.players) - set(game.in_game_players)):
             status = "READY" if p.ready else "-"
-            s_player += f_player.format(N=p.seat_num+1, NAME=p.name(), STATUS=status)
+            s_player += f_player.format(N=p.seat_num+1, NAME=p.name(16), STATUS=status)
 
         return s_header + s_player
 

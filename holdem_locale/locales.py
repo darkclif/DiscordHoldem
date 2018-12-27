@@ -2,7 +2,7 @@ import re
 from logger import global_log
 
 
-class Locales:
+class HoldemLocales:
     # List of languages
     langs = ["en", "pl"]
 
@@ -14,7 +14,7 @@ class Locales:
         self.load_lang()
 
     def set_lang(self, lang):
-        if lang in Locales.langs:
+        if lang in HoldemLocales.langs:
             self.lang = lang
             self.load_lang()
         else:
@@ -22,7 +22,7 @@ class Locales:
 
     def load_lang(self):
         regx = re.compile("^([^#|.]*)=.*\"(.*)\".*$")
-        file = "./locale/files/{}_texas.loc".format(self.lang)
+        file = "./holdem_locale/files/{}_texas.loc".format(self.lang)
         cnt = 0
 
         for l in open(file, "r"):
@@ -40,7 +40,7 @@ class Locales:
         return self.strings[keyword]
 
 
-locales = Locales()
+locales = HoldemLocales()
 
 
 def get_string(*args, **kwargs):

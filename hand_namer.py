@@ -1,4 +1,4 @@
-from locale import locales
+from holdem_locale import locales
 
 
 class HandNamer:
@@ -16,4 +16,8 @@ class HandNamer:
 
     @staticmethod
     def name_hand(hand):
-        return locales.get_string(HandNamer.locale_template_mapper[hand[0]])
+        try:
+            return locales.get_string(HandNamer.locale_template_mapper[hand[0]])
+        except IndexError:
+            return "Unknown"
+

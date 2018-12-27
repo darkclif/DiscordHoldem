@@ -31,7 +31,7 @@ class Evaluator:
         Return best possible hand from given cards.
 
         :param cards: {2 or 5 or 6 or 7} cards in list [c1, c2, ...].
-        :return: Dictionary with best hand value and cards used. {cards: [], value: ()}
+        :return: Dictionary with best hand value and cards used. {"cards": [], "value": ()}
         """
         if len(cards) == 2:
             return Evaluator.__hand_evaluate_2(cards), cards
@@ -43,7 +43,7 @@ class Evaluator:
                 if not best_hand or curr_hand > best_hand:
                     best_hand, best_cards = curr_hand, cards_comb
 
-            return best_hand, sorted(best_cards, key=lambda c: c[0], reverse=True)
+            return best_hand, sorted(best_cards, reverse=True)
 
     @staticmethod
     def __hand_evaluate_5(hand):
@@ -105,7 +105,7 @@ class Evaluator:
             return 1, pattern[3][0], pattern[2][0], pattern[1][0], pattern[0][0]
 
         # High card
-        return 0,
+        return (0, *sorted([c[0] for c in hand], reverse=True))
 
     @staticmethod
     def __hand_evaluate_2(hand):
@@ -128,19 +128,3 @@ class Evaluator:
             # High card
             cards = sorted([hand[0][0], hand[1][0]], reverse=True)
             return 0, cards[0], cards[1]
-
-#
-# print(Evaluator.hand_evaluate_2([(2, 1), (3, 2)]))
-#
-# from card import *
-# from random import shuffle
-#
-# deck = Card.create_deck()
-#
-# for i in range(0, 9):
-#     for _ in range(10000):
-#         shuffle(deck)
-#         ev = Evaluator.hand_evaluate_5(deck[0:5])
-#         if ev[0] == i:
-#             print("Hand: ", '/'.join(Card.get_string(c) for c in deck[0:5]))
-#             print("Value: ", ev)
